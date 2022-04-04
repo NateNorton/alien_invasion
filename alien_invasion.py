@@ -1,6 +1,10 @@
 import sys
+from time import sleep
+
 import pygame
+
 from settings import Settings
+from game_stats import GameStats
 from ship import Ship
 from alien import Alien
 from bullet import Bullet
@@ -17,6 +21,9 @@ class AlienInvasion:
         self.screen = pygame.display.set_mode(
             (self.settings.screen_width, self.settings.screen_height))
         pygame.display.set_caption("Alien Invasion")
+
+        # create an instance to store game statistics
+        self.stats = GameStats(self)
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
@@ -75,10 +82,40 @@ class AlienInvasion:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+        self._check_bullet_alien_collisions()
+
+    def _check_bullet_alien_collisions(self):
+        # check for any bullets that have hot aliens
+        # If so, get rid of the bullet and the alien
+        collisions = pygame.sprite.groupcollide(
+            self.bullets, self.aliens, True, True)
+        # destroy existing bullets and create new fleet
+        if not self.aliens:
+            self.bullets.epty()
+            self._create_fleet()
 
     def _update_aliens(self):
         self._check_fleet_edges()
         self.aliens.update()
+
+        # Look for alien-ship collisions
+        if pygame.sprite.spritecollideany(self.ship, self.aliens):
+            self._ship_hit()
+
+    def _ship_hit(self):
+        # decrement ships left
+        self.stats.ships_left -= 1
+
+        # get rid of any remaining aliens and bullets
+        self.aliens.empty()
+        self.bullets.empty()
+
+        # create a new fleet and center the ship
+        self._create_fleet()
+        self.ship.center_ship()
+
+        # pause
+        sleep(0.5)
 
     def _create_fleet(self):
         # create an alien and find the number of aliens in a row
